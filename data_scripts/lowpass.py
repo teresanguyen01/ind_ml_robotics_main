@@ -35,9 +35,8 @@ import matplotlib.cm as cm
 
 # ---------- Default joints (provided by user) ----------
 DEFAULT_JOINTS = [
-    'left_hip_roll_joint', 'right_hip_roll_joint',
-    'waist_yaw_joint', 'left_hip_yaw_joint', 'right_hip_yaw_joint',
-    'waist_pitch_joint', 'left_hip_pitch_joint', 'right_hip_pitch_joint',
+    'waist_yaw_joint',
+    'waist_pitch_joint',
     'waist_roll_joint',
     'left_shoulder_pitch_joint', 'right_shoulder_pitch_joint',
     'left_shoulder_roll_joint', 'right_shoulder_roll_joint',
@@ -47,23 +46,41 @@ DEFAULT_JOINTS = [
 
 
 # ---------- Plotting: provided by user ----------
-def plot_joint_angles(df, joints, output_dir, pic_name):
+def plot_joint_angles(df_raw, df_sm, joints, output_dir, pic_name):
     os.makedirs(output_dir, exist_ok=True)
-    plt.figure(figsize=(12, 8))
-    colors = cm.tab20(np.linspace(0, 1, len(joints)))
-    # t = df['time_ms'].values if 'time_ms' in df.columns else np.arange(len(df))
-    t = np.arange(len(df))
-    for name, color in zip(joints, colors):
-        if name in df.columns:
-            plt.plot(t, df[name].values, label=name, color=color)
-    plt.xlabel('Time (ms)')
-    plt.ylabel('Angle (rad)')
-    plt.title(f"{pic_name}")
-    plt.legend(bbox_to_anchor=(1.05,1), loc='upper left', fontsize='small')
-    plt.tight_layout()
-    out_path = os.path.join(output_dir, f'{pic_name}.png')
-    plt.savefig(out_path, dpi=300, bbox_inches='tight')
-    plt.close()
+
+    # x axis (frame index)
+    t = np.arange(len(df_raw))
+
+    nrows = len(joints)
+    fig_h = max(3.0, 1.6 * nrows)
+    fig, axes = plt.subplots(nrows=nrows, ncols=1, figsize=(12, fig_h), sharex=True)
+
+    if nrows == 1:
+        axes = [axes]
+
+    for ax, joint in zip(axes, joints):
+        if joint not in df_raw.columns:
+            continue
+
+        y_raw = df_raw[joint].values
+        y_sm = df_sm[joint].values if joint in df_sm.columns else None
+
+        ax.plot(t, y_raw, label="original")
+        if y_sm is not None:
+            ax.plot(t, y_sm, label="smoothed")
+
+        ax.set_title(joint)
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="upper right", fontsize=8)
+
+    axes[-1].set_xlabel("frame")
+    fig.tight_layout()
+
+    out_path = os.path.join(output_dir, f"{pic_name}.png")
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
     print(f"Saved plot to {out_path}")
 
 
@@ -168,15 +185,15 @@ def smooth_file(csv_path: str,
 
     # File names
     base = os.path.splitext(os.path.basename(csv_path))[0]
-    out_csv = os.path.join(out_dir, f"{base}_smoothed.csv")
+    out_csv = os.path.join(out_dir, f"{base}.csv")
 
     # Write smoothed CSV
     smoothed.to_csv(out_csv, index=False)
     print(f"Saved smoothed CSV: {out_csv}")
 
     # Plots: raw and smoothed
-    plot_joint_angles(df, joint_cols, plots_dir, f"raw_{base}")
-    plot_joint_angles(smoothed, joint_cols, plots_dir, f"smoothed_{base}")
+    plot_joint_angles(df, smoothed, joint_cols, plots_dir, f"{base}_comparison")
+
 
     return out_csv, os.path.join(plots_dir, base)
 

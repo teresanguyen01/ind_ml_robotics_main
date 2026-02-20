@@ -50,6 +50,13 @@ def plot_joint_angles(df, joints, output_dir, pic_name):
 
 def convert_mocap_to_qpos(input_csv, output_csv, plot_dir, pic_name):
     df = load_clean_data(input_csv)
+
+    if 'base_W' in df.columns:
+        df['base_W'] = df['base_W'] - 1
+
+    if 'base_Y' in df.columns:
+        df['base_Y'] = df['base_Y'] + 1
+
     n  = len(df)
 
     # ---- Detect available base columns ----
@@ -74,6 +81,14 @@ def convert_mocap_to_qpos(input_csv, output_csv, plot_dir, pic_name):
         'waist_yaw_joint', 'left_hip_yaw_joint', 'right_hip_yaw_joint',
         'waist_pitch_joint', 'left_hip_pitch_joint', 'right_hip_pitch_joint',
         'waist_roll_joint',
+        'left_shoulder_pitch_joint', 'right_shoulder_pitch_joint',
+        'left_shoulder_roll_joint', 'right_shoulder_roll_joint',
+        'left_shoulder_yaw_joint', 'right_shoulder_yaw_joint',
+        'left_elbow_pitch_joint', 'right_elbow_pitch_joint'
+    ]
+
+    joints2 = ['qx', 'qy', 'qz', 'qw',
+        'left_hip_roll_joint', 'right_hip_roll_joint', 'left_hip_yaw_joint', 'right_hip_yaw_joint', 'left_hip_pitch_joint', 'right_hip_pitch_joint',
         'left_shoulder_pitch_joint', 'right_shoulder_pitch_joint',
         'left_shoulder_roll_joint', 'right_shoulder_roll_joint',
         'left_shoulder_yaw_joint', 'right_shoulder_yaw_joint',
@@ -131,7 +146,10 @@ def convert_mocap_to_qpos(input_csv, output_csv, plot_dir, pic_name):
             )
             qx, qy, qz, qw = r_base.as_quat()
             out['qw'][i], out['qx'][i], out['qy'][i], out['qz'][i] = qw, qz, qx, qy
+            # out['qw'][i], out['qx'][i], out['qy'][i], out['qz'][i] = qw, qx, qy, qz
+
             R_base = seg_mat('base', i)
+            # print(R_base)
         else:
             r_base = R.identity()
             R_base = np.eye(3)
@@ -144,6 +162,11 @@ def convert_mocap_to_qpos(input_csv, output_csv, plot_dir, pic_name):
         R_lfa  = seg_mat('left_forearm', i)
         R_rfa  = seg_mat('right_forearm', i)
 
+        # yaw, pitch, roll = r_base.as_euler('ZYX')
+        # print(f"yaw: {yaw}, quat_z: {df.loc[i, 'base_Z']}")
+        # print(yaw == out[qz][i])
+        # print(yaw, pitch, roll)
+
         # Hip angles relative to base (or world if base missing)
         out['left_hip_roll_joint'][i]   = compute_hinge_angle(R_base, R_lth, [1,0,0])
         out['right_hip_roll_joint'][i]  = compute_hinge_angle(R_base, R_rth, [1,0,0])
@@ -153,9 +176,13 @@ def convert_mocap_to_qpos(input_csv, output_csv, plot_dir, pic_name):
         out['right_hip_pitch_joint'][i] = compute_hinge_angle(R_base, R_rth, [0,1,0])
 
         # Waist relative to base (or world if base missing)
-        out['waist_yaw_joint'][i]       = compute_hinge_angle(R_base, R_abd, [0,0,1])
-        out['waist_pitch_joint'][i]     = compute_hinge_angle(R_base, R_abd, [0,1,0])
-        out['waist_roll_joint'][i]      = compute_hinge_angle(R_base, R_abd, [1,0,0])
+        out['waist_yaw_joint'][i]       = out['qz'][i] if has_base_quat else 0.0
+        out['waist_pitch_joint'][i]     = out['qy'][i] if has_base_quat else 0.0
+        out['waist_roll_joint'][i]      = out['qx'][i] if has_base_quat else 0.0
+
+        # out['waist_yaw_joint'][i]       = compute_hinge_angle(R_base, R_abd, [0,0,1])
+        # out['waist_pitch_joint'][i]     = compute_hinge_angle(R_base, R_abd, [0,1,0])
+        # out['waist_roll_joint'][i]      = compute_hinge_angle(R_base, R_abd, [1,0,0])
 
         # Shoulders relative to abdomen
         out['left_shoulder_pitch_joint'][i]  = compute_hinge_angle(R_abd, R_lsh, [0,1,0])
@@ -173,7 +200,7 @@ def convert_mocap_to_qpos(input_csv, output_csv, plot_dir, pic_name):
     df_out.to_csv(output_csv, index=False)
     print(f"Saved qpos array ({len(joints)} joints{'' if has_base_quat else ', no base pose columns'}) to {output_csv}")
 
-    plot_joint_angles(df_out, joints, plot_dir, pic_name)
+    plot_joint_angles(df_out, joints2, plot_dir, pic_name)
     return df_out
 
 def process_directory(input_dir, output_dir, plot_dir):

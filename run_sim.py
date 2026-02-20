@@ -91,12 +91,27 @@ def run_one_csv(csv_path: Path, video_out: Path,
 
         qpos[0:3]   = [0.0, 0.0, 0.9]
         qpos[3:7]   = [1, 0.0, 0, 0]
+    
         # qpos[0:3] = row[['x', 'y', 'z']].values
         # qpos[3:7] = row[['qw', 'qx', 'qy', 'qz']].values
 
-        for name, idx in dof_idx_map.items():
-            if name in row:
-                qpos[idx + 7] = row[name]
+        for dof_name, dof_idx in dof_idx_map.items():
+            if dof_name in row:
+                qpos[dof_idx + 7] = row[dof_name]
+            if dof_name in row:
+                qpos[dof_idx + 7] = row[dof_name] 
+            if dof_name == 'left_hip_pitch_joint':
+                qpos[dof_idx + 7] = 0
+            if dof_name == 'right_hip_pitch_joint':
+                qpos[dof_idx + 7] = 0
+            if dof_name == 'right_hip_roll_joint':
+                qpos[dof_idx + 7] = 0
+            if dof_name == 'left_hip_roll_joint':
+                qpos[dof_idx + 7] = 0
+            if dof_name == 'left_hip_yaw_joint':
+                qpos[dof_idx + 7] = 0
+            if dof_name == 'right_hip_yaw_joint':
+                qpos[dof_idx + 7] = 0
         # print(qpos)
         robot.set_qpos(qpos)
         scene.step()
@@ -118,7 +133,7 @@ def main():
 
     gs.init(backend=gs.gpu)
 
-    scene, robot, cam = build_scene(Path(URDF), show_viewer=True)
+    scene, robot, cam = build_scene(Path(URDF), show_viewer=False)
 
     csv_files = sorted(in_dir.glob("*.csv"))
     if not csv_files:
